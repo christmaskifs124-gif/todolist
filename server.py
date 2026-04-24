@@ -4,14 +4,22 @@ Simple Authentication Server - Railway Compatible
 Works with both SQLite (local) and PostgreSQL (production)
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session, redirect
 from flask_cors import CORS
 import secrets
 import time
 import os
+import hashlib
 
 app = Flask(__name__)
-CORS(app)
+app.secret_key = secrets.token_hex(32)  # Secret key for sessions
+CORS(app, supports_credentials=True)  # Enable credentials for session cookies
+
+# Admin credentials (username: password_hash)
+ADMIN_USERS = {
+    'spade': hashlib.sha256('spade123'.encode()).hexdigest(),
+    'andy': hashlib.sha256('andy123'.encode()).hexdigest()
+}
 
 # Auto-detect database type
 DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///auth.db')
@@ -39,6 +47,21 @@ def get_db_connection():
         conn = sqlite3.connect(DATABASE, timeout=10.0, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         return conn
+
+# Initialize database on startup
+_db_initialized = False
+
+def ensure_db_initialized():
+    """Ensure database is initialized (called before first request)"""
+    global _db_initialized
+    if not _db_initialized:
+        init_db()
+        _db_initialized = True
+
+@app.before_request
+def before_request():
+    """Initialize database before first request"""
+    ensure_db_initialized()
 
 def init_db():
     """Initialize database tables"""
@@ -71,6 +94,14 @@ def init_db():
                 created_at BIGINT NOT NULL
             )
         ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at BIGINT NOT NULL
+            )
+        ''')
     else:
         # SQLite schema
         cursor.execute('PRAGMA journal_mode=WAL')
@@ -99,6 +130,31 @@ def init_db():
                 created_at INTEGER NOT NULL
             )
         ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            )
+        ''')
+    
+    # Initialize killswitch to enabled (1)
+    try:
+        if USE_POSTGRES:
+            cursor.execute('''
+                INSERT INTO settings (key, value, updated_at)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (key) DO NOTHING
+            ''', ('killswitch', '1', int(time.time())))
+        else:
+            cursor.execute('''
+                INSERT OR IGNORE INTO settings (key, value, updated_at)
+                VALUES (?, ?, ?)
+            ''', ('killswitch', '1', int(time.time())))
+    except Exception as e:
+        print(f"[WARNING] Killswitch init: {e}")
+        pass
     
     conn.commit()
     conn.close()
@@ -138,6 +194,15 @@ def authenticate():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Check killswitch
+        cursor.execute('SELECT value FROM settings WHERE key = %s' if USE_POSTGRES else 
+                      'SELECT value FROM settings WHERE key = ?', ('killswitch',))
+        killswitch_row = cursor.fetchone()
+        
+        if killswitch_row and killswitch_row['value'] == '0':
+            log_audit('auth_blocked', license_key, ip, 'Killswitch active')
+            return jsonify({'success': False, 'message': 'Service temporarily unavailable. Please try again later.'}), 503
         
         # Get license
         cursor.execute('SELECT * FROM licenses WHERE license_key = %s' if USE_POSTGRES else 
@@ -189,6 +254,9 @@ def authenticate():
 
 @app.route('/api/admin/licenses', methods=['GET'])
 def get_licenses():
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
     conn = None
     try:
         conn = get_db_connection()
@@ -220,6 +288,9 @@ def get_licenses():
 
 @app.route('/api/admin/license', methods=['POST'])
 def create_license():
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
     data = request.get_json()
     
     if not data or 'duration' not in data:
@@ -264,6 +335,9 @@ def create_license():
 
 @app.route('/api/admin/license/<license_id>/hwid', methods=['DELETE'])
 def reset_hwid(license_id):
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
     conn = None
     try:
         conn = get_db_connection()
@@ -283,6 +357,9 @@ def reset_hwid(license_id):
 
 @app.route('/api/admin/license/<license_id>/time', methods=['POST'])
 def add_time(license_id):
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
     data = request.get_json()
     
     if not data or 'seconds' not in data:
@@ -308,6 +385,9 @@ def add_time(license_id):
 
 @app.route('/api/admin/license/<license_id>', methods=['DELETE'])
 def delete_license(license_id):
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
     conn = None
     try:
         conn = get_db_connection()
@@ -326,6 +406,9 @@ def delete_license(license_id):
 
 @app.route('/api/admin/logs', methods=['GET'])
 def get_logs():
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
     conn = None
     try:
         conn = get_db_connection()
@@ -375,12 +458,97 @@ def index():
     </html>
     '''
 
+@app.route('/admin/login', methods=['POST'])
+def admin_login():
+    data = request.get_json()
+    username = data.get('username', '')
+    password = data.get('password', '')
+    
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    if username in ADMIN_USERS and ADMIN_USERS[username] == password_hash:
+        session['admin_logged_in'] = True
+        session['admin_username'] = username
+        return jsonify({'success': True}), 200
+    
+    return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
+
+@app.route('/admin/logout', methods=['POST'])
+def admin_logout():
+    session.clear()
+    return jsonify({'success': True}), 200
+
+@app.route('/admin/check', methods=['GET'])
+def admin_check():
+    if session.get('admin_logged_in'):
+        return jsonify({'logged_in': True, 'username': session.get('admin_username')}), 200
+    return jsonify({'logged_in': False}), 401
+
+@app.route('/api/admin/killswitch', methods=['GET'])
+def get_killswitch():
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT value FROM settings WHERE key = %s' if USE_POSTGRES else 
+                      'SELECT value FROM settings WHERE key = ?', ('killswitch',))
+        row = cursor.fetchone()
+        
+        enabled = row['value'] == '1' if row else True
+        return jsonify({'enabled': enabled}), 200
+    except Exception as e:
+        print(f"[ERROR] Get killswitch error: {e}")
+        return jsonify({'enabled': True}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/killswitch', methods=['POST'])
+def set_killswitch():
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    enabled = data.get('enabled', True)
+    value = '1' if enabled else '0'
+    
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if USE_POSTGRES:
+            cursor.execute('''
+                INSERT INTO settings (key, value, updated_at)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
+            ''', ('killswitch', value, int(time.time())))
+        else:
+            cursor.execute('''
+                INSERT OR REPLACE INTO settings (key, value, updated_at)
+                VALUES (?, ?, ?)
+            ''', ('killswitch', value, int(time.time())))
+        
+        conn.commit()
+        
+        status = 'enabled' if enabled else 'disabled'
+        log_audit('killswitch_changed', '', request.remote_addr, f'Killswitch {status} by {session.get("admin_username")}')
+        
+        return jsonify({'success': True, 'enabled': enabled}), 200
+    except Exception as e:
+        print(f"[ERROR] Set killswitch error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
 @app.route('/admin', methods=['GET'])
 def admin():
     with open('admin.html', 'r') as f:
         html = f.read()
-    # Update API URL in admin.html to use current domain
-    html = html.replace('http://localhost:8080', '')
     return html
 
 @app.route('/health', methods=['GET'])
