@@ -50,13 +50,22 @@ def get_db_connection():
 
 # Initialize database on startup
 _db_initialized = False
+_init_lock = None
 
 def ensure_db_initialized():
     """Ensure database is initialized (called before first request)"""
-    global _db_initialized
+    global _db_initialized, _init_lock
+    
+    if _init_lock is None:
+        import threading
+        _init_lock = threading.Lock()
+    
     if not _db_initialized:
-        init_db()
-        _db_initialized = True
+        with _init_lock:
+            # Double-check after acquiring lock
+            if not _db_initialized:
+                init_db()
+                _db_initialized = True
 
 @app.before_request
 def before_request():
@@ -323,34 +332,49 @@ def get_licenses():
         
         result = []
         for lic in licenses:
-            # Handle both dict and Row objects
             try:
                 # Convert Row to dict for consistent access
                 lic_dict = dict(lic)
                 result.append({
                     'id': lic_dict['id'],
                     'license_key': lic_dict['license_key'],
-                    'username': lic_dict['username'],
+                    'username': lic_dict.get('username', 'User'),
                     'product': lic_dict.get('product', 'fortnite'),
-                    'hwid': lic_dict['hwid'] or '',
+                    'hwid': lic_dict.get('hwid', ''),
                     'expiry': lic_dict['expiry'],
                     'duration': lic_dict['duration'],
                     'status': lic_dict.get('status', 0),
                     'created_at': lic_dict['created_at'],
                     'last_used': lic_dict.get('last_used', 0)
                 })
-            except (KeyError, TypeError) as e:
+            except Exception as e:
                 print(f"[WARNING] Error parsing license row: {e}")
-                continue
+                # Try alternative access method
+                try:
+                    result.append({
+                        'id': lic['id'],
+                        'license_key': lic['license_key'],
+                        'username': lic['username'] if 'username' in lic.keys() else 'User',
+                        'product': lic['product'] if 'product' in lic.keys() else 'fortnite',
+                        'hwid': lic['hwid'] if 'hwid' in lic.keys() else '',
+                        'expiry': lic['expiry'],
+                        'duration': lic['duration'],
+                        'status': lic['status'] if 'status' in lic.keys() else 0,
+                        'created_at': lic['created_at'],
+                        'last_used': lic['last_used'] if 'last_used' in lic.keys() else 0
+                    })
+                except Exception as e2:
+                    print(f"[ERROR] Failed to parse license with both methods: {e2}")
+                    continue
         
         print(f"[INFO] Returning {len(result)} licenses for product filter: {product_filter}")
-        return jsonify({'licenses': result}), 200
+        return jsonify({'licenses': result, 'success': True}), 200
         
     except Exception as e:
         print(f"[ERROR] Get licenses error: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'licenses': [], 'error': str(e)}), 200  # Return 200 with empty array
+        return jsonify({'licenses': [], 'success': False, 'error': str(e)}), 200  # Return 200 with empty array
     finally:
         if conn:
             conn.close()
@@ -429,12 +453,12 @@ def reset_hwid(license_id):
 @app.route('/api/admin/license/<license_id>/time', methods=['POST'])
 def add_time(license_id):
     if not session.get('admin_logged_in'):
-        return jsonify({'error': 'Unauthorized'}), 401
+        return jsonify({'error': 'Unauthorized', 'success': False}), 401
     
     data = request.get_json()
     
     if not data or 'seconds' not in data:
-        return jsonify({'success': False}), 400
+        return jsonify({'success': False, 'message': 'Missing seconds parameter'}), 400
     
     seconds = int(data['seconds'])
     
@@ -442,14 +466,27 @@ def add_time(license_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Check if license exists
+        cursor.execute('SELECT id FROM licenses WHERE id = %s' if USE_POSTGRES else
+                      'SELECT id FROM licenses WHERE id = ?', (license_id,))
+        exists = cursor.fetchone()
+        
+        if not exists:
+            return jsonify({'success': False, 'message': 'License not found'}), 404
+        
+        # Update expiry
         cursor.execute('UPDATE licenses SET expiry = expiry + %s WHERE id = %s' if USE_POSTGRES else
                       'UPDATE licenses SET expiry = expiry + ? WHERE id = ?', (seconds, license_id))
         conn.commit()
         
-        return jsonify({'success': True}), 200
+        print(f"[INFO] Added {seconds} seconds to license {license_id}")
+        return jsonify({'success': True, 'message': 'Time added successfully'}), 200
     except Exception as e:
         print(f"[ERROR] Add time error: {e}")
-        return jsonify({'success': False}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         if conn:
             conn.close()
