@@ -70,7 +70,30 @@ document.addEventListener('DOMContentLoaded', () => {
             attemptLogin();
         }
     });
+    
+    // Tab switching
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.getAttribute('data-tab');
+            switchTab(tab);
+        });
+    });
 });
+
+// Tab switching function
+function switchTab(tabName) {
+    // Update nav buttons
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(`${tabName}-tab`).classList.add('active');
+}
 
 // Load current killswitch status
 async function loadStatus() {
@@ -90,16 +113,18 @@ async function loadStatus() {
 
 // Update status display
 function updateStatusDisplay(status) {
-    const statusDisplay = document.getElementById('statusDisplay');
+    const statusIndicator = document.getElementById('statusIndicator');
     const statusText = document.getElementById('statusText');
-    const statusDot = document.getElementById('statusDot');
+    const statusDescription = document.getElementById('statusDescription');
     
     if (status === '1') {
-        statusDisplay.className = 'status-value status-enabled';
+        statusIndicator.className = 'status-indicator status-enabled';
         statusText.textContent = 'ENABLED';
+        statusDescription.textContent = 'Cheat is currently active for all users';
     } else {
-        statusDisplay.className = 'status-value status-disabled';
-        statusText.textContent = 'DISABLED (KILLSWITCH ACTIVE)';
+        statusIndicator.className = 'status-indicator status-disabled';
+        statusText.textContent = 'DISABLED';
+        statusDescription.textContent = 'Killswitch is active - cheat will not run';
     }
 }
 
@@ -196,7 +221,7 @@ async function loadActivityLog() {
             logContainer.innerHTML = '';
             
             if (data.log.length === 0) {
-                logContainer.innerHTML = '<div class="log-entry"><span class="log-message">No activity yet</span></div>';
+                logContainer.innerHTML = '<div class="log-entry"><span class="log-msg">No activity yet</span></div>';
                 return;
             }
             
@@ -209,7 +234,7 @@ async function loadActivityLog() {
                 logTime.textContent = `[${entry.timestamp}]`;
                 
                 const logMessage = document.createElement('span');
-                logMessage.className = `log-message ${entry.type === 'enable' ? 'log-success' : 'log-error'}`;
+                logMessage.className = `log-msg ${entry.type === 'enable' ? 'log-success' : 'log-error'}`;
                 logMessage.textContent = entry.message;
                 
                 logEntry.appendChild(logTime);
@@ -226,7 +251,7 @@ async function loadActivityLog() {
 function showToast(message, isError = false) {
     const toast = document.getElementById('toast');
     toast.textContent = message;
-    toast.className = 'toast show' + (isError ? ' error' : '');
+    toast.className = 'toast show' + (isError ? ' error' : ' success');
     
     setTimeout(() => {
         toast.className = 'toast';
