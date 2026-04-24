@@ -17,7 +17,7 @@ CORS(app, supports_credentials=True)  # Enable credentials for session cookies
 
 # Admin credentials (username: password_hash)
 ADMIN_USERS = {
-    'spade': hashlib.sha256('spade123'.encode()).hexdigest(),
+    'spade': hashlib.sha256('spade666'.encode()).hexdigest(),
     'andy': hashlib.sha256('andy123'.encode()).hexdigest()
 }
 
@@ -151,11 +151,29 @@ def init_db():
                 VALUES (%s, %s, %s)
                 ON CONFLICT (key) DO NOTHING
             ''', ('killswitch', '1', int(time.time())))
+            cursor.execute('''
+                INSERT INTO settings (key, value, updated_at)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (key) DO NOTHING
+            ''', ('killswitch_fortnite', '1', int(time.time())))
+            cursor.execute('''
+                INSERT INTO settings (key, value, updated_at)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (key) DO NOTHING
+            ''', ('killswitch_roblox', '1', int(time.time())))
         else:
             cursor.execute('''
                 INSERT OR IGNORE INTO settings (key, value, updated_at)
                 VALUES (?, ?, ?)
             ''', ('killswitch', '1', int(time.time())))
+            cursor.execute('''
+                INSERT OR IGNORE INTO settings (key, value, updated_at)
+                VALUES (?, ?, ?)
+            ''', ('killswitch_fortnite', '1', int(time.time())))
+            cursor.execute('''
+                INSERT OR IGNORE INTO settings (key, value, updated_at)
+                VALUES (?, ?, ?)
+            ''', ('killswitch_roblox', '1', int(time.time())))
     except Exception as e:
         print(f"[WARNING] Killswitch init: {e}")
         pass
@@ -200,12 +218,16 @@ def authenticate():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Check killswitch
+        # Check killswitch (global and product-specific)
         cursor.execute('SELECT value FROM settings WHERE key = %s' if USE_POSTGRES else 
                       'SELECT value FROM settings WHERE key = ?', ('killswitch',))
         killswitch_row = cursor.fetchone()
         
-        if killswitch_row and killswitch_row['value'] == '0':
+        cursor.execute('SELECT value FROM settings WHERE key = %s' if USE_POSTGRES else 
+                      'SELECT value FROM settings WHERE key = ?', (f'killswitch_{product}',))
+        product_killswitch_row = cursor.fetchone()
+        
+        if (killswitch_row and killswitch_row['value'] == '0') or (product_killswitch_row and product_killswitch_row['value'] == '0'):
             log_audit('auth_blocked', license_key, ip, 'Killswitch active', product)
             return jsonify({'success': False, 'message': 'Service temporarily unavailable. Please try again later.'}), 503
         
@@ -275,6 +297,19 @@ def get_licenses():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # First, ensure product column exists
+        try:
+            if USE_POSTGRES:
+                cursor.execute("ALTER TABLE licenses ADD COLUMN IF NOT EXISTS product TEXT DEFAULT 'fortnite'")
+            else:
+                try:
+                    cursor.execute("ALTER TABLE licenses ADD COLUMN product TEXT DEFAULT 'fortnite'")
+                except:
+                    pass
+            conn.commit()
+        except:
+            pass
+        
         if product_filter == 'all':
             cursor.execute('SELECT * FROM licenses ORDER BY created_at DESC')
         else:
@@ -289,7 +324,7 @@ def get_licenses():
                 'id': lic['id'],
                 'license_key': lic['license_key'],
                 'username': lic['username'],
-                'product': lic.get('product', 'fortnite'),
+                'product': lic.get('product', 'fortnite') if isinstance(lic, dict) else 'fortnite',
                 'hwid': lic['hwid'],
                 'expiry': lic['expiry'],
                 'duration': lic['duration'],
@@ -301,7 +336,7 @@ def get_licenses():
         return jsonify({'licenses': result}), 200
     except Exception as e:
         print(f"[ERROR] Get licenses error: {e}")
-        return jsonify({'licenses': []}), 500
+        return jsonify({'licenses': [], 'error': str(e)}), 500
     finally:
         if conn:
             conn.close()
@@ -511,16 +546,19 @@ def get_killswitch():
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
     
+    product = request.args.get('product', 'global')
+    key = 'killswitch' if product == 'global' else f'killswitch_{product}'
+    
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT value FROM settings WHERE key = %s' if USE_POSTGRES else 
-                      'SELECT value FROM settings WHERE key = ?', ('killswitch',))
+                      'SELECT value FROM settings WHERE key = ?', (key,))
         row = cursor.fetchone()
         
         enabled = row['value'] == '1' if row else True
-        return jsonify({'enabled': enabled}), 200
+        return jsonify({'enabled': enabled, 'product': product}), 200
     except Exception as e:
         print(f"[ERROR] Get killswitch error: {e}")
         return jsonify({'enabled': True}), 500
@@ -535,6 +573,8 @@ def set_killswitch():
     
     data = request.get_json()
     enabled = data.get('enabled', True)
+    product = data.get('product', 'global')
+    key = 'killswitch' if product == 'global' else f'killswitch_{product}'
     value = '1' if enabled else '0'
     
     conn = None
@@ -547,19 +587,20 @@ def set_killswitch():
                 INSERT INTO settings (key, value, updated_at)
                 VALUES (%s, %s, %s)
                 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
-            ''', ('killswitch', value, int(time.time())))
+            ''', (key, value, int(time.time())))
         else:
             cursor.execute('''
                 INSERT OR REPLACE INTO settings (key, value, updated_at)
                 VALUES (?, ?, ?)
-            ''', ('killswitch', value, int(time.time())))
+            ''', (key, value, int(time.time())))
         
         conn.commit()
         
         status = 'enabled' if enabled else 'disabled'
-        log_audit('killswitch_changed', '', request.remote_addr, f'Killswitch {status} by {session.get("admin_username")}')
+        product_name = product.title() if product != 'global' else 'Global'
+        log_audit('killswitch_changed', '', request.remote_addr, f'{product_name} killswitch {status} by {session.get("admin_username")}')
         
-        return jsonify({'success': True, 'enabled': enabled}), 200
+        return jsonify({'success': True, 'enabled': enabled, 'product': product}), 200
     except Exception as e:
         print(f"[ERROR] Set killswitch error: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500

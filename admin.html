@@ -549,6 +549,20 @@
             letter-spacing: 1px;
             font-weight: 600;
         }
+        
+        /* Product Header */
+        .product-header {
+            margin-bottom: 20px;
+            padding: 20px 0;
+            border-bottom: 2px solid #2a2a2a;
+        }
+        
+        .product-header h2 {
+            color: #667eea;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -604,6 +618,10 @@
         </div>
         
         <div class="container">
+            <div class="product-header">
+                <h2 id="productTitle">All Products</h2>
+            </div>
+            
             <div class="stats">
                 <div class="stat-card">
                     <div class="stat-value" id="totalLicenses">0</div>
@@ -619,15 +637,15 @@
                 </div>
             </div>
             
-            <div class="section">
+            <div class="section" id="killswitchSection">
                 <h2>Killswitch Control</h2>
                 <div class="killswitch-container">
                     <div class="killswitch-info">
                         <h3>
-                            Cheat Status
+                            <span id="killswitchTitle">Cheat Status</span>
                             <span class="status-badge status-enabled" id="killswitchBadge">Enabled</span>
                         </h3>
-                        <p>Toggle to enable or disable authentication for all users</p>
+                        <p id="killswitchDesc">Toggle to enable or disable authentication for this product</p>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="killswitchToggle" onchange="toggleKillswitch()" checked>
@@ -737,6 +755,25 @@
                 item.classList.remove('active');
             });
             event.target.classList.add('active');
+            
+            // Update product title
+            const titles = {
+                'all': 'All Products',
+                'fortnite': 'Fortnite Product',
+                'roblox': 'Roblox Product'
+            };
+            document.getElementById('productTitle').textContent = titles[product] || 'All Products';
+            
+            // Show/hide killswitch section based on product
+            const killswitchSection = document.getElementById('killswitchSection');
+            if (product === 'all') {
+                killswitchSection.style.display = 'none';
+            } else {
+                killswitchSection.style.display = 'block';
+                document.getElementById('killswitchTitle').textContent = titles[product] + ' Status';
+                document.getElementById('killswitchDesc').textContent = `Toggle to enable or disable authentication for ${titles[product]}`;
+                loadKillswitch();
+            }
             
             // Close sidebar
             toggleSidebar();
@@ -859,14 +896,18 @@
             document.getElementById('dashboardPage').style.display = 'block';
             document.getElementById('currentUser').textContent = username;
             
-            loadKillswitch();
+            // Hide killswitch by default (shown when product selected)
+            document.getElementById('killswitchSection').style.display = 'none';
+            
             loadLicenses();
             loadLogs();
         }
         
         async function loadKillswitch() {
+            if (currentProduct === 'all') return;
+            
             try {
-                const response = await fetch(`${API_URL}/api/admin/killswitch`, {
+                const response = await fetch(`${API_URL}/api/admin/killswitch?product=${currentProduct}`, {
                     credentials: 'include'
                 });
                 const data = await response.json();
@@ -889,6 +930,8 @@
         }
         
         async function toggleKillswitch() {
+            if (currentProduct === 'all') return;
+            
             const toggle = document.getElementById('killswitchToggle');
             const enabled = toggle.checked;
             
@@ -897,25 +940,30 @@
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     credentials: 'include',
-                    body: JSON.stringify({enabled})
+                    body: JSON.stringify({enabled, product: currentProduct})
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
                     const badge = document.getElementById('killswitchBadge');
+                    const productName = currentProduct.charAt(0).toUpperCase() + currentProduct.slice(1);
                     if (enabled) {
                         badge.textContent = 'Enabled';
                         badge.className = 'status-badge status-enabled';
+                        showAlert('Success', `${productName} cheat enabled! Users can now authenticate.`);
                     } else {
                         badge.textContent = 'Disabled';
                         badge.className = 'status-badge status-disabled';
+                        showAlert('Success', `${productName} cheat disabled! Users cannot authenticate.`);
                     }
                     loadLogs(); // Refresh logs to show killswitch change
                 } else {
+                    showAlert('Error', 'Failed to update killswitch');
                     toggle.checked = !enabled; // Revert toggle
                 }
             } catch (error) {
+                showAlert('Error', error.message);
                 toggle.checked = !enabled; // Revert toggle
             }
         }
