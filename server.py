@@ -361,6 +361,10 @@ def index():
         <h1>🔐 Simple Auth Server</h1>
         <p>Server is running on Railway!</p>
         <p>Database: ''' + ('PostgreSQL' if USE_POSTGRES else 'SQLite') + '''</p>
+        <h2>Links:</h2>
+        <ul>
+            <li><a href="/admin" style="color: #00ff88;">Admin Dashboard</a></li>
+        </ul>
         <h2>API Endpoints:</h2>
         <ul>
             <li>POST /api/client/authenticate - Client authentication</li>
@@ -370,6 +374,14 @@ def index():
     </body>
     </html>
     '''
+
+@app.route('/admin', methods=['GET'])
+def admin():
+    with open('admin.html', 'r') as f:
+        html = f.read()
+    # Update API URL in admin.html to use current domain
+    html = html.replace('http://localhost:8080', '')
+    return html
 
 @app.route('/health', methods=['GET'])
 def health():
