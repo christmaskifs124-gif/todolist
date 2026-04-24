@@ -76,6 +76,7 @@ def init_db():
                 license_key TEXT UNIQUE NOT NULL,
                 hwid TEXT DEFAULT '',
                 username TEXT DEFAULT 'User',
+                product TEXT DEFAULT 'fortnite',
                 expiry BIGINT NOT NULL,
                 duration INTEGER NOT NULL,
                 status INTEGER DEFAULT 0,
@@ -89,6 +90,7 @@ def init_db():
                 id SERIAL PRIMARY KEY,
                 event_type TEXT NOT NULL,
                 license_key TEXT,
+                product TEXT,
                 ip_address TEXT,
                 details TEXT,
                 created_at BIGINT NOT NULL
@@ -112,6 +114,7 @@ def init_db():
                 license_key TEXT UNIQUE NOT NULL,
                 hwid TEXT DEFAULT '',
                 username TEXT DEFAULT 'User',
+                product TEXT DEFAULT 'fortnite',
                 expiry INTEGER NOT NULL,
                 duration INTEGER NOT NULL,
                 status INTEGER DEFAULT 0,
@@ -125,6 +128,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_type TEXT NOT NULL,
                 license_key TEXT,
+                product TEXT,
                 ip_address TEXT,
                 details TEXT,
                 created_at INTEGER NOT NULL
@@ -160,18 +164,18 @@ def init_db():
     conn.close()
     print("[+] Database initialized")
 
-def log_audit(event_type, license_key='', ip_address='', details=''):
+def log_audit(event_type, license_key='', ip_address='', details='', product=''):
     """Log audit event"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO audit_logs (event_type, license_key, ip_address, details, created_at)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO audit_logs (event_type, license_key, product, ip_address, details, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
         ''' if USE_POSTGRES else '''
-            INSERT INTO audit_logs (event_type, license_key, ip_address, details, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (event_type, license_key, ip_address, details, int(time.time())))
+            INSERT INTO audit_logs (event_type, license_key, product, ip_address, details, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (event_type, license_key, product, ip_address, details, int(time.time())))
         conn.commit()
         conn.close()
     except Exception as e:
@@ -188,6 +192,7 @@ def authenticate():
     
     license_key = data['license_key']
     hwid = data['hwid']
+    product = data.get('product', 'fortnite')  # Default to fortnite for backward compatibility
     ip = request.remote_addr
     
     conn = None
@@ -201,27 +206,32 @@ def authenticate():
         killswitch_row = cursor.fetchone()
         
         if killswitch_row and killswitch_row['value'] == '0':
-            log_audit('auth_blocked', license_key, ip, 'Killswitch active')
+            log_audit('auth_blocked', license_key, ip, 'Killswitch active', product)
             return jsonify({'success': False, 'message': 'Service temporarily unavailable. Please try again later.'}), 503
         
-        # Get license
+        # Get license and check product
         cursor.execute('SELECT * FROM licenses WHERE license_key = %s' if USE_POSTGRES else 
                       'SELECT * FROM licenses WHERE license_key = ?', (license_key,))
         license = cursor.fetchone()
         
         if not license:
-            log_audit('auth_failed', license_key, ip, 'Invalid license')
+            log_audit('auth_failed', license_key, ip, 'Invalid license', product)
             return jsonify({'success': False, 'message': 'Invalid license key'}), 401
+        
+        # Check if license is for the correct product
+        if license['product'] != product:
+            log_audit('auth_wrong_product', license_key, ip, f'License for {license["product"]}, tried to use for {product}', product)
+            return jsonify({'success': False, 'message': f'This license is for {license["product"].title()} product only'}), 403
         
         # Check expiry
         now = int(time.time())
         if license['expiry'] < now and license['expiry'] != 9999999999:
-            log_audit('auth_expired', license_key, ip, 'License expired')
+            log_audit('auth_expired', license_key, ip, 'License expired', product)
             return jsonify({'success': False, 'message': 'License expired'}), 403
         
         # Check HWID
         if license['hwid'] and license['hwid'] != hwid:
-            log_audit('auth_hwid_mismatch', license_key, ip, f'HWID: {hwid}')
+            log_audit('auth_hwid_mismatch', license_key, ip, f'HWID: {hwid}', product)
             return jsonify({'success': False, 'message': 'HWID mismatch. Contact admin to reset.'}), 403
         
         # Bind HWID if first use
@@ -229,19 +239,20 @@ def authenticate():
             cursor.execute('UPDATE licenses SET hwid = %s WHERE license_key = %s' if USE_POSTGRES else
                           'UPDATE licenses SET hwid = ? WHERE license_key = ?', (hwid, license_key))
             conn.commit()
-            log_audit('hwid_bound', license_key, ip, f'HWID: {hwid}')
+            log_audit('hwid_bound', license_key, ip, f'HWID: {hwid}', product)
         
         # Update last used
         cursor.execute('UPDATE licenses SET last_used = %s WHERE license_key = %s' if USE_POSTGRES else
                       'UPDATE licenses SET last_used = ? WHERE license_key = ?', (now, license_key))
         conn.commit()
         
-        log_audit('auth_success', license_key, ip, 'Login successful')
+        log_audit('auth_success', license_key, ip, 'Login successful', product)
         
         return jsonify({
             'success': True,
             'message': 'Authentication successful',
             'username': license['username'],
+            'product': license['product'],
             'expires_at': license['expiry']
         }), 200
         
@@ -257,11 +268,19 @@ def get_licenses():
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
     
+    product_filter = request.args.get('product', 'all')
+    
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM licenses ORDER BY created_at DESC')
+        
+        if product_filter == 'all':
+            cursor.execute('SELECT * FROM licenses ORDER BY created_at DESC')
+        else:
+            cursor.execute('SELECT * FROM licenses WHERE product = %s ORDER BY created_at DESC' if USE_POSTGRES else
+                          'SELECT * FROM licenses WHERE product = ? ORDER BY created_at DESC', (product_filter,))
+        
         licenses = cursor.fetchall()
         
         result = []
@@ -270,6 +289,7 @@ def get_licenses():
                 'id': lic['id'],
                 'license_key': lic['license_key'],
                 'username': lic['username'],
+                'product': lic.get('product', 'fortnite'),
                 'hwid': lic['hwid'],
                 'expiry': lic['expiry'],
                 'duration': lic['duration'],
@@ -298,6 +318,7 @@ def create_license():
     
     duration = int(data['duration'])
     username = data.get('username', 'User')
+    product = data.get('product', 'fortnite')
     
     # Generate license key
     license_key = secrets.token_hex(16).upper()
@@ -313,17 +334,18 @@ def create_license():
         cursor = conn.cursor()
         
         cursor.execute('''
-            INSERT INTO licenses (id, license_key, username, expiry, duration, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO licenses (id, license_key, username, product, expiry, duration, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         ''' if USE_POSTGRES else '''
-            INSERT INTO licenses (id, license_key, username, expiry, duration, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (license_id, license_key, username, expiry, duration, now))
+            INSERT INTO licenses (id, license_key, username, product, expiry, duration, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (license_id, license_key, username, product, expiry, duration, now))
         conn.commit()
         
         return jsonify({
             'success': True,
             'license_key': license_key,
+            'product': product,
             'expiry': expiry
         }), 200
     except Exception as e:
@@ -554,6 +576,41 @@ def admin():
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'healthy', 'database': 'PostgreSQL' if USE_POSTGRES else 'SQLite'}), 200
+
+@app.route('/migrate', methods=['GET'])
+def migrate():
+    """Add product column to existing tables"""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Add product column to licenses table if it doesn't exist
+        try:
+            if USE_POSTGRES:
+                cursor.execute("ALTER TABLE licenses ADD COLUMN IF NOT EXISTS product TEXT DEFAULT 'fortnite'")
+                cursor.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS product TEXT")
+            else:
+                # SQLite doesn't support IF NOT EXISTS in ALTER TABLE, so we try and catch
+                try:
+                    cursor.execute("ALTER TABLE licenses ADD COLUMN product TEXT DEFAULT 'fortnite'")
+                except:
+                    pass
+                try:
+                    cursor.execute("ALTER TABLE audit_logs ADD COLUMN product TEXT")
+                except:
+                    pass
+            
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Database migrated successfully'}), 200
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'Migration error: {str(e)}'}), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Connection error: {str(e)}'}), 500
+    finally:
+        if conn:
+            conn.close()
 
 # ==================== Main ====================
 

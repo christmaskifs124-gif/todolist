@@ -112,6 +112,27 @@
             border-bottom: 1px solid #2a2a2a;
         }
         
+        .navbar-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .hamburger {
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .hamburger span {
+            width: 25px;
+            height: 3px;
+            background: #ffffff;
+            border-radius: 2px;
+            transition: 0.3s;
+        }
+        
         .navbar h1 {
             font-size: 24px;
             color: #ffffff;
@@ -466,6 +487,68 @@
         .modal-footer button {
             padding: 10px 24px;
         }
+        
+        /* Sidebar Menu */
+        .sidebar {
+            position: fixed;
+            left: -300px;
+            top: 0;
+            width: 300px;
+            height: 100%;
+            background: #1a1a1a;
+            border-right: 1px solid #2a2a2a;
+            z-index: 999;
+            transition: left 0.3s;
+            padding: 80px 0 20px 0;
+        }
+        
+        .sidebar.active {
+            left: 0;
+        }
+        
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+        }
+        
+        .sidebar-overlay.active {
+            display: block;
+        }
+        
+        .sidebar-item {
+            padding: 15px 30px;
+            color: #b0b0b0;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        
+        .sidebar-item:hover {
+            background: #0f0f0f;
+            color: #ffffff;
+            border-left-color: #667eea;
+        }
+        
+        .sidebar-item.active {
+            background: #0f0f0f;
+            color: #667eea;
+            border-left-color: #667eea;
+        }
+        
+        .sidebar-header {
+            padding: 0 30px 15px 30px;
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -490,8 +573,30 @@
     
     <!-- Dashboard -->
     <div class="dashboard" id="dashboardPage">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">Products</div>
+            <div class="sidebar-item active" onclick="selectProduct('all')">
+                All Products
+            </div>
+            <div class="sidebar-item" onclick="selectProduct('fortnite')">
+                Fortnite Product
+            </div>
+            <div class="sidebar-item" onclick="selectProduct('roblox')">
+                Roblox Product
+            </div>
+        </div>
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+        
         <div class="navbar">
-            <h1>Aether Admin Panel</h1>
+            <div class="navbar-left">
+                <div class="hamburger" onclick="toggleSidebar()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <h1>Aether Admin Panel</h1>
+            </div>
             <div class="navbar-right">
                 <span class="user-info">Logged in as <strong id="currentUser"></strong></span>
                 <button class="btn-logout" onclick="logout()">Logout</button>
@@ -534,6 +639,13 @@
             <div class="section">
                 <h2>Create New License</h2>
                 <div class="form-group">
+                    <label>Product</label>
+                    <select id="product">
+                        <option value="fortnite">Fortnite Product</option>
+                        <option value="roblox">Roblox Product</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>Username</label>
                     <input type="text" id="username" placeholder="Enter username" value="User">
                 </div>
@@ -560,6 +672,7 @@
                         <tr>
                             <th>License Key</th>
                             <th>Username</th>
+                            <th>Product</th>
                             <th>HWID</th>
                             <th>Expiry</th>
                             <th>Status</th>
@@ -568,7 +681,7 @@
                         </tr>
                     </thead>
                     <tbody id="licensesTable">
-                        <tr><td colspan="7" class="loading">Loading...</td></tr>
+                        <tr><td colspan="8" class="loading">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -608,6 +721,29 @@
     
     <script>
         const API_URL = '';
+        let currentProduct = 'all';
+        
+        // Sidebar Functions
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+        
+        function selectProduct(product) {
+            currentProduct = product;
+            
+            // Update sidebar active state
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Close sidebar
+            toggleSidebar();
+            
+            // Reload licenses
+            loadLicenses();
+        }
         
         // Custom Modal Functions
         let modalCallback = null;
@@ -784,22 +920,17 @@
             }
         }
         
-        function formatTimestamp(timestamp) {
-            if (timestamp === 9999999999) return 'Lifetime';
-            if (timestamp === 0) return 'Never';
-            return new Date(timestamp * 1000).toLocaleString();
-        }
-        
         async function createLicense() {
             const username = document.getElementById('username').value;
             const duration = parseInt(document.getElementById('duration').value);
+            const product = document.getElementById('product').value;
             
             try {
                 const response = await fetch(`${API_URL}/api/admin/license`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     credentials: 'include',
-                    body: JSON.stringify({username, duration})
+                    body: JSON.stringify({username, duration, product})
                 });
                 
                 const data = await response.json();
@@ -809,7 +940,7 @@
                         <div class="result">
                             <strong>✅ License Created!</strong><br>
                             <span class="mono">${data.license_key}</span><br>
-                            <small>Expires: ${formatTimestamp(data.expiry)}</small>
+                            <small>Product: ${data.product.charAt(0).toUpperCase() + data.product.slice(1)} | Expires: ${formatTimestamp(data.expiry)}</small>
                         </div>
                     `;
                     loadLicenses();
@@ -825,9 +956,19 @@
             }
         }
         
+        function formatTimestamp(timestamp) {
+            if (timestamp === 9999999999) return 'Lifetime';
+            if (timestamp === 0) return 'Never';
+            return new Date(timestamp * 1000).toLocaleString();
+        }
+        
         async function loadLicenses() {
             try {
-                const response = await fetch(`${API_URL}/api/admin/licenses`, {
+                const url = currentProduct === 'all' 
+                    ? `${API_URL}/api/admin/licenses`
+                    : `${API_URL}/api/admin/licenses?product=${currentProduct}`;
+                
+                const response = await fetch(url, {
                     credentials: 'include'
                 });
                 
@@ -852,11 +993,13 @@
                         if (lic.hwid) bound++;
                         
                         const isActive = lic.expiry > now || lic.expiry === 9999999999;
+                        const productName = (lic.product || 'fortnite').charAt(0).toUpperCase() + (lic.product || 'fortnite').slice(1);
                         
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td class="mono">${lic.license_key || 'N/A'}</td>
                             <td>${lic.username || 'User'}</td>
+                            <td><span class="status ${lic.product === 'fortnite' ? 'active' : 'expired'}">${productName}</span></td>
                             <td class="mono">${lic.hwid ? lic.hwid.substring(0, 16) + '...' : 'Not bound'}</td>
                             <td>${formatTimestamp(lic.expiry)}</td>
                             <td><span class="status ${isActive ? 'active' : 'expired'}">${isActive ? 'Active' : 'Expired'}</span></td>
@@ -872,7 +1015,7 @@
                 }
                 
                 if (total === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="loading">No licenses found. Create one to get started!</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="loading">No licenses found. Create one to get started!</td></tr>';
                 }
                 
                 document.getElementById('totalLicenses').textContent = total;
@@ -882,7 +1025,7 @@
             } catch (error) {
                 console.error('Load licenses error:', error);
                 document.getElementById('licensesTable').innerHTML = `
-                    <tr><td colspan="7" style="text-align: center; color: #f44336;">Error: ${error.message}</td></tr>
+                    <tr><td colspan="8" style="text-align: center; color: #f44336;">Error: ${error.message}</td></tr>
                 `;
             }
         }
