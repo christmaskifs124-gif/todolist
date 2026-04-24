@@ -5,6 +5,15 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Aether Admin Panel</title>
         <style>
+            :root {
+                --bg-primary: #1a1a1a;
+                --bg-secondary: #0a0a0a;
+                --bg-tertiary: #2a2a2a;
+                --text-primary: #e0e0e0;
+                --text-secondary: #888888;
+                --border-color: #2a2a2a;
+            }
+            
             * {
                 margin: 0;
                 padding: 0;
@@ -14,7 +23,7 @@
             body {
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
                 background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%) fixed;
-                color: #e0e0e0;
+                color: var(--text-primary);
                 min-height: 100vh;
                 display: flex;
                 align-items: center;
@@ -528,6 +537,8 @@
                 z-index: 999;
                 padding: 0;
                 overflow-y: auto;
+                display: flex;
+                flex-direction: column;
             }
             
             .sidebar-logo {
@@ -701,13 +712,19 @@
                 <div class="sidebar-section">
                     <div class="sidebar-header">Navigation</div>
                     <div class="sidebar-item active" onclick="selectProduct('all')">
-                        <span></span> All Products
+                        <span>📊</span> All Products
                     </div>
                     <div class="sidebar-item" onclick="selectProduct('fortnite')">
-                        <span></span> Fortnite
+                        <span>🎮</span> Fortnite
                     </div>
                     <div class="sidebar-item" onclick="selectProduct('roblox')">
-                        <span></span> Roblox
+                        <span>🎲</span> Roblox
+                    </div>
+                </div>
+                
+                <div class="sidebar-section" style="margin-top: auto; border-bottom: none;">
+                    <div class="sidebar-item" onclick="openSettings()">
+                        <span>⚙️</span> Settings
                     </div>
                 </div>
             </div>
@@ -850,6 +867,69 @@
                 </div>
             </div>
         </div>
+    
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">Settings</div>
+            <div class="modal-body" style="text-align: left;">
+                
+                <!-- Theme Section -->
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #ffffff; font-size: 16px; margin-bottom: 15px;">Appearance</h3>
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+                        <div>
+                            <div style="font-weight: 600; color: #e0e0e0; margin-bottom: 4px;">Theme</div>
+                            <div style="font-size: 12px; color: #888;">Switch between light and dark mode</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="themeToggle" onchange="toggleTheme()" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Account Section -->
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #ffffff; font-size: 16px; margin-bottom: 15px;">Account</h3>
+                    <div style="padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 8px; color: #888; font-size: 12px;">Username</label>
+                            <input type="text" id="newUsername" placeholder="Enter new username" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #e0e0e0;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 8px; color: #888; font-size: 12px;">New Password</label>
+                            <input type="password" id="newPassword" placeholder="Enter new password" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #e0e0e0;">
+                        </div>
+                        <button onclick="updateAccount()" style="width: 100%; padding: 10px; background: #2563eb; border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer;">Update Account</button>
+                    </div>
+                </div>
+                
+                <!-- Statistics Section -->
+                <div>
+                    <h3 style="color: #ffffff; font-size: 16px; margin-bottom: 15px;">Statistics</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                        <div style="padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; text-align: center;">
+                            <div style="font-size: 24px; font-weight: 700; color: #2563eb;" id="statsCreated">0</div>
+                            <div style="font-size: 11px; color: #888; margin-top: 4px;">Created</div>
+                        </div>
+                        <div style="padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; text-align: center;">
+                            <div style="font-size: 24px; font-weight: 700; color: #10b981;" id="statsActive">0</div>
+                            <div style="font-size: 11px; color: #888; margin-top: 4px;">Active</div>
+                        </div>
+                        <div style="padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; text-align: center;">
+                            <div style="font-size: 24px; font-weight: 700; color: #f44336;" id="statsDeleted">0</div>
+                            <div style="font-size: 11px; color: #888; margin-top: 4px;">Deleted</div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeSettings()">Close</button>
+            </div>
+        </div>
+    </div>
         
         <script>
             const API_URL = '';
@@ -1000,6 +1080,118 @@
                 if (e.target === this) {
                     closeModal();
                 }
+            });
+            
+            // Settings Functions
+            function openSettings() {
+                document.getElementById('settingsModal').classList.add('active');
+                loadStatistics();
+                
+                // Load current theme
+                const isDark = localStorage.getItem('theme') !== 'light';
+                document.getElementById('themeToggle').checked = isDark;
+            }
+            
+            function closeSettings() {
+                document.getElementById('settingsModal').classList.remove('active');
+            }
+            
+            function toggleTheme() {
+                const isDark = document.getElementById('themeToggle').checked;
+                const theme = isDark ? 'dark' : 'light';
+                localStorage.setItem('theme', theme);
+                applyTheme(theme);
+            }
+            
+            function applyTheme(theme) {
+                const root = document.documentElement;
+                if (theme === 'light') {
+                    root.style.setProperty('--bg-primary', '#ffffff');
+                    root.style.setProperty('--bg-secondary', '#f5f5f5');
+                    root.style.setProperty('--bg-tertiary', '#e0e0e0');
+                    root.style.setProperty('--text-primary', '#1a1a1a');
+                    root.style.setProperty('--text-secondary', '#666666');
+                    root.style.setProperty('--border-color', '#d0d0d0');
+                    document.body.style.background = 'radial-gradient(circle at center, #e8e8e8 0%, #ffffff 100%) fixed';
+                } else {
+                    root.style.setProperty('--bg-primary', '#1a1a1a');
+                    root.style.setProperty('--bg-secondary', '#0a0a0a');
+                    root.style.setProperty('--bg-tertiary', '#2a2a2a');
+                    root.style.setProperty('--text-primary', '#e0e0e0');
+                    root.style.setProperty('--text-secondary', '#888888');
+                    root.style.setProperty('--border-color', '#2a2a2a');
+                    document.body.style.background = 'radial-gradient(circle at center, #1a1a2e 0%, #000000 100%) fixed';
+                }
+            }
+            
+            async function updateAccount() {
+                const username = document.getElementById('newUsername').value;
+                const password = document.getElementById('newPassword').value;
+                
+                if (!username && !password) {
+                    showAlert('Error', 'Please enter a username or password to update');
+                    return;
+                }
+                
+                // Note: This would need a backend endpoint to actually update credentials
+                // For now, just show a message
+                showAlert('Info', 'Account update feature requires backend implementation. Contact admin to change credentials.');
+            }
+            
+            async function loadStatistics() {
+                try {
+                    const response = await fetch(`${API_URL}/api/admin/licenses`, {
+                        credentials: 'include'
+                    });
+                    
+                    if (!response.ok) return;
+                    
+                    const data = await response.json();
+                    const now = Math.floor(Date.now() / 1000);
+                    
+                    let created = 0;
+                    let active = 0;
+                    
+                    if (data.licenses && Array.isArray(data.licenses)) {
+                        created = data.licenses.length;
+                        active = data.licenses.filter(lic => 
+                            lic.expiry > now || lic.expiry === 9999999999
+                        ).length;
+                    }
+                    
+                    // Get deleted count from audit logs
+                    const logsResponse = await fetch(`${API_URL}/api/admin/logs`, {
+                        credentials: 'include'
+                    });
+                    
+                    let deleted = 0;
+                    if (logsResponse.ok) {
+                        const logsData = await logsResponse.json();
+                        deleted = logsData.logs.filter(log => 
+                            log.event_type === 'license_deleted' || log.details.includes('deleted')
+                        ).length;
+                    }
+                    
+                    document.getElementById('statsCreated').textContent = created;
+                    document.getElementById('statsActive').textContent = active;
+                    document.getElementById('statsDeleted').textContent = deleted;
+                    
+                } catch (error) {
+                    console.error('Load statistics error:', error);
+                }
+            }
+            
+            // Close settings modal on overlay click
+            document.getElementById('settingsModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeSettings();
+                }
+            });
+            
+            // Apply theme on page load
+            window.addEventListener('DOMContentLoaded', function() {
+                const theme = localStorage.getItem('theme') || 'dark';
+                applyTheme(theme);
             });
             
             // Check if already logged in
