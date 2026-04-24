@@ -162,7 +162,114 @@
         .dashboard {
             display: none;
             width: 100%;
-            background: transparent;
+            background: #0f0f0f;
+            min-height: 100vh;
+        }
+        
+        /* KeyAuth-style Sidebar */
+        .sidebar-nav {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 220px;
+            height: 100vh;
+            background: #1a1a1a;
+            border-right: 1px solid #2a2a2a;
+            z-index: 100;
+            overflow-y: auto;
+        }
+        
+        .sidebar-logo {
+            padding: 30px 20px;
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        
+        .sidebar-section {
+            padding: 20px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        
+        .sidebar-section-title {
+            padding: 0 20px 10px 20px;
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        
+        .sidebar-link {
+            padding: 12px 20px;
+            color: #999;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+        
+        .sidebar-link:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+        }
+        
+        .sidebar-link.active {
+            background: rgba(37, 99, 235, 0.1);
+            color: #2563eb;
+            border-left: 3px solid #2563eb;
+            padding-left: 17px;
+        }
+        
+        .sidebar-footer {
+            padding: 20px;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            border-top: 1px solid #2a2a2a;
+        }
+        
+        .sidebar-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .sidebar-user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #2563eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .sidebar-user-info {
+            flex: 1;
+        }
+        
+        .sidebar-user-name {
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .sidebar-user-role {
+            color: #666;
+            font-size: 11px;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: 220px;
             min-height: 100vh;
         }
         
@@ -176,62 +283,41 @@
             border-bottom: 1px solid #2a2a2a;
         }
         
-        .navbar-left {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        .hamburger {
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        
-        .hamburger span {
-            width: 25px;
-            height: 3px;
-            background: #ffffff;
-            border-radius: 2px;
-            transition: 0.3s;
-        }
-        
-        .navbar h1 {
+        .navbar-title {
             font-size: 24px;
             color: #ffffff;
+            font-weight: 600;
         }
         
-        .navbar-right {
+        .navbar-actions {
             display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        .user-info {
-            color: #b0b0b0;
-            font-size: 14px;
+            gap: 10px;
         }
         
         .btn-logout {
             padding: 8px 20px;
-            background: #f44336;
-            border: none;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 6px;
-            color: white;
+            color: #999;
             font-weight: 500;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            font-size: 13px;
         }
         
         .btn-logout:hover {
-            background: #d32f2f;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
         }
         
         .container {
-            max-width: 1400px;
-            margin: 0 auto;
             padding: 30px 40px 60px 40px;
+        }
+        
+        /* Hide old sidebar */
+        .sidebar, .sidebar-overlay, .hamburger {
+            display: none !important;
         }
         
         .stats {
@@ -667,101 +753,107 @@
     
     <!-- Dashboard -->
     <div class="dashboard" id="dashboardPage">
-        <!-- Sidebar -->
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">Products</div>
-            <div class="sidebar-item active" onclick="selectProduct('all')">
-                All Products
-            </div>
-            <div class="sidebar-item" onclick="selectProduct('fortnite')">
-                Fortnite Product
-            </div>
-            <div class="sidebar-item" onclick="selectProduct('roblox')">
-                Roblox Product
-            </div>
-        </div>
-        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-        
-        <div class="navbar">
-            <div class="navbar-left">
-                <div class="hamburger" onclick="toggleSidebar()">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-                <h1>Aether Admin Panel</h1>
-            </div>
-            <div class="navbar-right">
-                <span class="user-info">Logged in as <strong id="currentUser"></strong></span>
-                <button class="btn-logout" onclick="logout()">Logout</button>
-            </div>
-        </div>
-        
-        <div class="container">
-            <div class="product-header">
-                <h2 id="productTitle">All Products</h2>
-            </div>
+        <!-- KeyAuth-style Sidebar -->
+        <div class="sidebar-nav">
+            <div class="sidebar-logo">AETHER</div>
             
-            <div class="stats">
-                <div class="stat-card">
-                    <div class="stat-value" id="totalLicenses">0</div>
-                    <div class="stat-label">Total Licenses</div>
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Applications</div>
+                <div class="sidebar-link active" onclick="selectProduct('all')">
+                    All Products
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="activeLicenses">0</div>
-                    <div class="stat-label">Active Licenses</div>
+                <div class="sidebar-link" onclick="selectProduct('fortnite')">
+                    Fortnite
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="boundLicenses">0</div>
-                    <div class="stat-label">HWID Bound</div>
+                <div class="sidebar-link" onclick="selectProduct('roblox')">
+                    Roblox
                 </div>
             </div>
             
-            <div class="section" id="killswitchSection">
-                <h2>Killswitch Control</h2>
-                <div class="killswitch-container">
-                    <div class="killswitch-info">
-                        <h3>
-                            <span id="killswitchTitle">Cheat Status</span>
-                            <span class="status-badge status-enabled" id="killswitchBadge">Enabled</span>
-                        </h3>
-                        <p id="killswitchDesc">Toggle to enable or disable authentication for this product</p>
+            <div class="sidebar-footer">
+                <div class="sidebar-user">
+                    <div class="sidebar-user-avatar" id="userAvatar">A</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name" id="sidebarUsername">Admin</div>
+                        <div class="sidebar-user-role">Administrator</div>
                     </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="killswitchToggle" onchange="toggleKillswitch()" checked>
-                        <span class="slider"></span>
-                    </label>
+                </div>
+                <button class="btn-logout" onclick="logout()" style="width: 100%;">Logout</button>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="navbar">
+                <div class="navbar-title" id="productTitle">All Products</div>
+                <div class="navbar-actions">
+                    <button onclick="loadLicenses()" class="btn-logout">Refresh</button>
                 </div>
             </div>
             
-            <div class="section">
-                <h2>Create New License</h2>
-                <div class="form-group" id="productSelectGroup">
-                    <label>Product</label>
-                    <select id="product">
-                        <option value="fortnite">Fortnite Product</option>
-                        <option value="roblox">Roblox Product</option>
-                    </select>
+            <div class="container">
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalLicenses">0</div>
+                        <div class="stat-label">Total Licenses</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="activeLicenses">0</div>
+                        <div class="stat-label">Active Licenses</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="boundLicenses">0</div>
+                        <div class="stat-label">HWID Bound</div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="username" placeholder="Enter username" value="User">
+                
+                <div class="section" id="killswitchSection">
+                    <h2>Killswitch Control</h2>
+                    <div class="killswitch-container">
+                        <div class="killswitch-info">
+                            <h3>
+                                <span id="killswitchTitle">Cheat Status</span>
+                                <span class="status-badge status-enabled" id="killswitchBadge">Enabled</span>
+                            </h3>
+                            <p id="killswitchDesc">Toggle to enable or disable authentication for this product</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="killswitchToggle" onchange="toggleKillswitch()" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Duration</label>
-                    <select id="duration">
-                        <option value="86400">1 Day</option>
-                        <option value="604800">7 Days</option>
-                        <option value="2592000" selected>30 Days</option>
-                        <option value="7776000">90 Days</option>
-                        <option value="31536000">1 Year</option>
-                        <option value="9999999999">Lifetime</option>
-                    </select>
+                
+                <div class="section">
+                    <h2>Create New License</h2>
+                    <div class="form-group" id="productSelectGroup">
+                        <label>Product</label>
+                        <select id="product">
+                            <option value="fortnite">Fortnite Product</option>
+                            <option value="roblox">Roblox Product</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="username" placeholder="Enter username" value="User">
+                    </div>
+                    <div class="form-group">
+                        <label>Duration</label>
+                        <select id="duration">
+                            <option value="86400">1 Day</option>
+                            <option value="604800">7 Days</option>
+                            <option value="2592000" selected>30 Days</option>
+                            <option value="7776000">90 Days</option>
+                            <option value="31536000">1 Year</option>
+                            <option value="9999999999">Lifetime</option>
+                        </select>
+                    </div>
+                    <button onclick="createLicense()">Create License</button>
+                    <div id="createResult"></div>
                 </div>
-                <button onclick="createLicense()">Create License</button>
-                <div id="createResult"></div>
             </div>
-            
+        </div>
+    </div>
             <div class="section">
                 <h2>Licenses</h2>
                 <button onclick="loadLicenses()">Refresh</button>
@@ -821,17 +913,12 @@
         const API_URL = '';
         let currentProduct = 'all';
         
-        // Sidebar Functions
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
-        }
-        
+        // Product Selection
         function selectProduct(product) {
             currentProduct = product;
             
             // Update sidebar active state
-            document.querySelectorAll('.sidebar-item').forEach(item => {
+            document.querySelectorAll('.sidebar-link').forEach(item => {
                 item.classList.remove('active');
             });
             event.target.classList.add('active');
@@ -839,8 +926,8 @@
             // Update product title
             const titles = {
                 'all': 'All Products',
-                'fortnite': 'Fortnite Product',
-                'roblox': 'Roblox Product'
+                'fortnite': 'Fortnite',
+                'roblox': 'Roblox'
             };
             document.getElementById('productTitle').textContent = titles[product] || 'All Products';
             
@@ -867,9 +954,6 @@
                 document.getElementById('killswitchDesc').textContent = `Toggle to enable or disable authentication for ${titles[product]}`;
                 loadKillswitch();
             }
-            
-            // Close sidebar
-            toggleSidebar();
             
             // Reload licenses
             loadLicenses();
@@ -1050,7 +1134,10 @@
         function showDashboard(username) {
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('dashboardPage').style.display = 'block';
-            document.getElementById('currentUser').textContent = username;
+            
+            // Update sidebar user info
+            document.getElementById('sidebarUsername').textContent = username;
+            document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
             
             // Reset body alignment for dashboard
             document.body.style.display = 'block';
