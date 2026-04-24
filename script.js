@@ -5,17 +5,71 @@ const API_URL = 'api.php'; // Backend API endpoint
 let currentStatus = null;
 let activityLog = [];
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    loadStatus();
-    loadStats();
-    loadActivityLog();
+// Authentication
+async function attemptLogin() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const errorMsg = document.getElementById('errorMessage');
     
-    // Auto-refresh every 5 seconds
-    setInterval(() => {
+    if (!username || !password) {
+        showError('Please enter username and password');
+        return false;
+    }
+    
+    const result = await window._auth.login(username, password);
+    
+    if (result.success) {
+        document.getElementById('loginContainer').style.display = 'none';
+        document.getElementById('mainContainer').style.display = 'block';
         loadStatus();
         loadStats();
-    }, 5000);
+        loadActivityLog();
+    } else {
+        showError(result.error || 'Invalid credentials');
+    }
+    
+    return false;
+}
+
+function logout() {
+    if (confirm('Logout from admin panel?')) {
+        window._auth.logout();
+    }
+}
+
+function showError(message) {
+    const errorMsg = document.getElementById('errorMessage');
+    errorMsg.textContent = message;
+    errorMsg.className = 'error-message show';
+    
+    setTimeout(() => {
+        errorMsg.className = 'error-message';
+    }, 3000);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if already logged in
+    if (window._auth.check()) {
+        document.getElementById('loginContainer').style.display = 'none';
+        document.getElementById('mainContainer').style.display = 'block';
+        loadStatus();
+        loadStats();
+        loadActivityLog();
+        
+        // Auto-refresh every 5 seconds
+        setInterval(() => {
+            loadStatus();
+            loadStats();
+        }, 5000);
+    }
+    
+    // Handle Enter key on login form
+    document.getElementById('password').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            attemptLogin();
+        }
+    });
 });
 
 // Load current killswitch status

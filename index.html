@@ -7,7 +7,30 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
+    <!-- Login Screen -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>⚡ Aether</h1>
+                <p>Admin Authentication</p>
+            </div>
+            <form id="loginForm" onsubmit="return false;">
+                <div class="input-group">
+                    <input type="text" id="username" placeholder="Username" autocomplete="off" required>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="password" placeholder="Password" autocomplete="off" required>
+                </div>
+                <button type="submit" class="btn btn-login" onclick="attemptLogin()">
+                    Login
+                </button>
+                <div class="error-message" id="errorMessage"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Dashboard (hidden until login) -->
+    <div class="container" id="mainContainer" style="display: none;">
         <div class="header">
             <h1>⚡ Aether Cheats</h1>
             <p class="subtitle">Admin Control Panel</p>
@@ -80,11 +103,13 @@
 
         <div class="footer">
             <p>Aether Cheats © 2024 | Secure Admin Panel</p>
+            <button class="btn-logout" onclick="logout()">Logout</button>
         </div>
     </div>
 
     <div class="toast" id="toast"></div>
 
+    <script src="auth.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

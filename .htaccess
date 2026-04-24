@@ -1,0 +1,33 @@
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Frame-Options "DENY"
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "no-referrer"
+</IfModule>
+
+# Disable directory listing
+Options -Indexes
+
+# Protect sensitive files
+<FilesMatch "^(auth\.js|\.htaccess|\.htpasswd|activity\.log|stats\.json)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Allow only status.txt to be publicly accessible
+<Files "status.txt">
+    Order allow,deny
+    Allow from all
+</Files>
+
+# Prevent access to PHP files directly (except api.php)
+<FilesMatch "\.php$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# Enable HTTPS redirect (optional)
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
