@@ -2,41 +2,51 @@
 // Aether Cheats - Killswitch API Backend
 // Simple PHP backend for killswitch control
 
+// CORS and headers
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
+
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 // Configuration
 define('STATUS_FILE', 'status.txt');
 define('LOG_FILE', 'activity.log');
 define('STATS_FILE', 'stats.json');
-define('ADMIN_PASSWORD', 'your_secure_password_here'); // Change this!
 
 // Get action
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
 // Handle requests
-switch ($action) {
-    case 'getStatus':
-        getStatus();
-        break;
-    
-    case 'setStatus':
-        setStatus();
-        break;
-    
-    case 'getStats':
-        getStats();
-        break;
-    
-    case 'getLog':
-        getLog();
-        break;
-    
-    default:
-        echo json_encode(['success' => false, 'error' => 'Invalid action']);
-        break;
+try {
+    switch ($action) {
+        case 'getStatus':
+            getStatus();
+            break;
+        
+        case 'setStatus':
+            setStatus();
+            break;
+        
+        case 'getStats':
+            getStats();
+            break;
+        
+        case 'getLog':
+            getLog();
+            break;
+        
+        default:
+            echo json_encode(['success' => false, 'error' => 'Invalid action']);
+            break;
+    }
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
 
 // Get current status
@@ -59,14 +69,15 @@ function getStatus() {
 // Set status (enable/disable killswitch)
 function setStatus() {
     // Get POST data
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
     
-    if (!isset($input['status'])) {
+    if (!isset($data['status'])) {
         echo json_encode(['success' => false, 'error' => 'Missing status parameter']);
         return;
     }
     
-    $newStatus = $input['status'];
+    $newStatus = $data['status'];
     
     // Validate status
     if ($newStatus !== '0' && $newStatus !== '1') {
@@ -97,7 +108,7 @@ function getStats() {
     $stats = loadStats();
     
     // Calculate uptime percentage (simplified)
-    $uptime = '99.9%'; // You can implement real uptime tracking
+    $uptime = '99.9%';
     
     echo json_encode([
         'success' => true,
@@ -152,7 +163,21 @@ function loadStats() {
         return $defaultStats;
     }
     
-    return json_decode(file_get_contents(STATS_FILE), true);
+    $content = file_get_contents(STATS_FILE);
+    $stats = json_decode($content, true);
+    
+    // Handle corrupted file
+    if (!$stats) {
+        $defaultStats = [
+            'checksToday' => 0,
+            'lastCheckDate' => date('Y-m-d'),
+            'lastChange' => 'Never'
+        ];
+        file_put_contents(STATS_FILE, json_encode($defaultStats));
+        return $defaultStats;
+    }
+    
+    return $stats;
 }
 
 // Helper: Save stats
