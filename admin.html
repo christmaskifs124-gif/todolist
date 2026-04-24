@@ -13,7 +13,7 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
+            background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%) fixed;
             color: #e0e0e0;
             min-height: 100vh;
             display: flex;
@@ -29,7 +29,9 @@
             align-items: center;
             min-height: 100vh;
             width: 100%;
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
         }
         
         #intro-text {
@@ -85,9 +87,11 @@
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: #b0b0b0;
-            font-weight: 500;
-            font-size: 14px;
+            color: #888;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
         
         .form-group input {
@@ -158,7 +162,8 @@
         .dashboard {
             display: none;
             width: 100%;
-            background: #0a0a0a;
+            background: transparent;
+            min-height: 100vh;
         }
         
         .navbar {
@@ -226,7 +231,7 @@
         .container {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 30px 40px;
+            padding: 30px 40px 60px 40px;
         }
         
         .stats {
@@ -272,8 +277,10 @@
         .section h2 {
             color: #ffffff;
             margin-bottom: 20px;
-            font-size: 20px;
-            font-weight: 600;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
         
         .killswitch-container {
@@ -622,14 +629,16 @@
         .product-header {
             margin-bottom: 20px;
             padding: 20px 0;
-            border-bottom: 2px solid rgba(37, 99, 235, 0.3);
+            border-bottom: 1px solid rgba(37, 99, 235, 0.2);
         }
         
         .product-header h2 {
-            color: #2563eb;
-            font-size: 28px;
-            font-weight: 700;
+            color: #ffffff;
+            font-size: 32px;
+            font-weight: 900;
             margin: 0;
+            text-transform: uppercase;
+            letter-spacing: -0.03em;
         }
     </style>
 </head>
@@ -1004,6 +1013,12 @@
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('dashboardPage').style.display = 'block';
             document.getElementById('currentUser').textContent = username;
+            
+            // Reset body alignment for dashboard
+            document.body.style.display = 'block';
+            document.body.style.alignItems = 'unset';
+            document.body.style.justifyContent = 'unset';
+            document.body.style.overflow = 'auto';
             
             // Hide killswitch by default (shown when product selected)
             document.getElementById('killswitchSection').style.display = 'none';
