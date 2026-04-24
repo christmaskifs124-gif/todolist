@@ -323,34 +323,25 @@ def get_licenses():
         
         result = []
         for lic in licenses:
-            # Handle both dict and tuple responses
-            if USE_POSTGRES or hasattr(lic, 'keys'):
+            # Handle both dict and Row objects
+            try:
+                # Convert Row to dict for consistent access
+                lic_dict = dict(lic)
                 result.append({
-                    'id': lic['id'],
-                    'license_key': lic['license_key'],
-                    'username': lic['username'],
-                    'product': lic.get('product') or 'fortnite',
-                    'hwid': lic['hwid'] or '',
-                    'expiry': lic['expiry'],
-                    'duration': lic['duration'],
-                    'status': lic.get('status', 0),
-                    'created_at': lic['created_at'],
-                    'last_used': lic.get('last_used', 0)
+                    'id': lic_dict['id'],
+                    'license_key': lic_dict['license_key'],
+                    'username': lic_dict['username'],
+                    'product': lic_dict.get('product', 'fortnite'),
+                    'hwid': lic_dict['hwid'] or '',
+                    'expiry': lic_dict['expiry'],
+                    'duration': lic_dict['duration'],
+                    'status': lic_dict.get('status', 0),
+                    'created_at': lic_dict['created_at'],
+                    'last_used': lic_dict.get('last_used', 0)
                 })
-            else:
-                # Fallback for tuple
-                result.append({
-                    'id': lic[0],
-                    'license_key': lic[1],
-                    'username': lic[3],
-                    'product': 'fortnite',
-                    'hwid': lic[2] or '',
-                    'expiry': lic[5],
-                    'duration': lic[6],
-                    'status': 0,
-                    'created_at': lic[8],
-                    'last_used': lic[9] if len(lic) > 9 else 0
-                })
+            except (KeyError, TypeError) as e:
+                print(f"[WARNING] Error parsing license row: {e}")
+                continue
         
         print(f"[INFO] Returning {len(result)} licenses for product filter: {product_filter}")
         return jsonify({'licenses': result}), 200
