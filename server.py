@@ -297,19 +297,22 @@ def get_licenses():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # First, ensure product column exists
+        # First, ensure product column exists by trying to add it
         try:
             if USE_POSTGRES:
                 cursor.execute("ALTER TABLE licenses ADD COLUMN IF NOT EXISTS product TEXT DEFAULT 'fortnite'")
+                cursor.execute("UPDATE licenses SET product = 'fortnite' WHERE product IS NULL")
             else:
                 try:
                     cursor.execute("ALTER TABLE licenses ADD COLUMN product TEXT DEFAULT 'fortnite'")
                 except:
                     pass
+                cursor.execute("UPDATE licenses SET product = 'fortnite' WHERE product IS NULL OR product = ''")
             conn.commit()
-        except:
-            pass
+        except Exception as e:
+            print(f"[WARNING] Column migration: {e}")
         
+        # Now fetch licenses
         if product_filter == 'all':
             cursor.execute('SELECT * FROM licenses ORDER BY created_at DESC')
         else:
@@ -320,23 +323,43 @@ def get_licenses():
         
         result = []
         for lic in licenses:
-            result.append({
-                'id': lic['id'],
-                'license_key': lic['license_key'],
-                'username': lic['username'],
-                'product': lic.get('product', 'fortnite') if isinstance(lic, dict) else 'fortnite',
-                'hwid': lic['hwid'],
-                'expiry': lic['expiry'],
-                'duration': lic['duration'],
-                'status': lic['status'],
-                'created_at': lic['created_at'],
-                'last_used': lic['last_used']
-            })
+            # Handle both dict and tuple responses
+            if USE_POSTGRES or hasattr(lic, 'keys'):
+                result.append({
+                    'id': lic['id'],
+                    'license_key': lic['license_key'],
+                    'username': lic['username'],
+                    'product': lic.get('product') or 'fortnite',
+                    'hwid': lic['hwid'] or '',
+                    'expiry': lic['expiry'],
+                    'duration': lic['duration'],
+                    'status': lic.get('status', 0),
+                    'created_at': lic['created_at'],
+                    'last_used': lic.get('last_used', 0)
+                })
+            else:
+                # Fallback for tuple
+                result.append({
+                    'id': lic[0],
+                    'license_key': lic[1],
+                    'username': lic[3],
+                    'product': 'fortnite',
+                    'hwid': lic[2] or '',
+                    'expiry': lic[5],
+                    'duration': lic[6],
+                    'status': 0,
+                    'created_at': lic[8],
+                    'last_used': lic[9] if len(lic) > 9 else 0
+                })
         
+        print(f"[INFO] Returning {len(result)} licenses for product filter: {product_filter}")
         return jsonify({'licenses': result}), 200
+        
     except Exception as e:
         print(f"[ERROR] Get licenses error: {e}")
-        return jsonify({'licenses': [], 'error': str(e)}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({'licenses': [], 'error': str(e)}), 200  # Return 200 with empty array
     finally:
         if conn:
             conn.close()
@@ -443,20 +466,35 @@ def add_time(license_id):
 @app.route('/api/admin/license/<license_id>', methods=['DELETE'])
 def delete_license(license_id):
     if not session.get('admin_logged_in'):
-        return jsonify({'error': 'Unauthorized'}), 401
+        return jsonify({'error': 'Unauthorized', 'success': False}), 401
     
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Check if license exists first
+        cursor.execute('SELECT id FROM licenses WHERE id = %s' if USE_POSTGRES else
+                      'SELECT id FROM licenses WHERE id = ?', (license_id,))
+        exists = cursor.fetchone()
+        
+        if not exists:
+            print(f"[WARNING] License {license_id} not found")
+            return jsonify({'success': False, 'message': 'License not found'}), 404
+        
+        # Delete the license
         cursor.execute('DELETE FROM licenses WHERE id = %s' if USE_POSTGRES else
                       'DELETE FROM licenses WHERE id = ?', (license_id,))
         conn.commit()
         
-        return jsonify({'success': True}), 200
+        print(f"[INFO] License {license_id} deleted successfully")
+        return jsonify({'success': True, 'message': 'License deleted'}), 200
+        
     except Exception as e:
         print(f"[ERROR] Delete license error: {e}")
-        return jsonify({'success': False}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         if conn:
             conn.close()

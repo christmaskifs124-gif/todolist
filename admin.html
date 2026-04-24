@@ -13,8 +13,13 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #0a0a0a;
+            background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
             color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
         }
         
         /* Login Page */
@@ -23,24 +28,54 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: #0a0a0a;
+            width: 100%;
+            position: relative;
+        }
+        
+        #intro-text {
+            position: absolute;
+            z-index: 100;
+            animation: fadeOutBlur 1.6s ease-in-out 1.5s forwards;
+        }
+        
+        #intro-text h1 {
+            font-size: 10rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -0.05em;
+            color: #d1d1d1;
+        }
+        
+        @keyframes fadeOutBlur {
+            0% { opacity: 1; filter: blur(0px); }
+            100% { opacity: 0; filter: blur(20px); visibility: hidden; }
         }
         
         .login-box {
-            background: #1a1a1a;
+            background: rgba(18, 18, 18, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             padding: 40px;
-            border-radius: 12px;
+            border-radius: 16px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-            border: 1px solid #2a2a2a;
             width: 100%;
             max-width: 400px;
+            opacity: 0;
+            animation: fadeIn 1s ease-out 3s forwards;
+            z-index: 10;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .login-box h1 {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 8px;
             color: #ffffff;
             font-size: 28px;
+            font-weight: 700;
         }
         
         .form-group {
@@ -52,54 +87,78 @@
             margin-bottom: 8px;
             color: #b0b0b0;
             font-weight: 500;
+            font-size: 14px;
         }
         
         .form-group input {
             width: 100%;
             padding: 12px 16px;
-            border: 2px solid #2a2a2a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 8px;
             font-size: 14px;
-            transition: border-color 0.3s;
-            background: #0f0f0f;
+            transition: all 0.3s;
+            background: rgba(0, 0, 0, 0.4);
             color: #e0e0e0;
         }
         
         .form-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: rgba(37, 99, 235, 0.5);
+        }
+        
+        .form-group input.error {
+            color: #f87171;
+            border-color: #f87171;
         }
         
         .btn-login {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #ffffff;
             border: none;
             border-radius: 8px;
-            color: white;
-            font-weight: 600;
-            font-size: 16px;
+            color: #000000;
+            font-weight: 700;
+            font-size: 12px;
             cursor: pointer;
-            transition: transform 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.2s;
         }
         
         .btn-login:hover {
-            transform: translateY(-2px);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-login:active {
+            transform: scale(0.95);
         }
         
         .error-message {
-            background: #2a1515;
-            color: #ff6b6b;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+            background: transparent;
+            color: #f87171;
+            padding: 0;
+            margin-bottom: 16px;
             text-align: center;
-            border: 1px solid #3a1f1f;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+        
+        .fade-out-slow {
+            opacity: 0 !important;
+            transform: translateY(-20px) !important;
+            transition: opacity 1.5s ease, transform 1.5s ease;
+            pointer-events: none;
         }
         
         /* Dashboard */
         .dashboard {
             display: none;
+            width: 100%;
+            background: #0a0a0a;
         }
         
         .navbar {
@@ -568,19 +627,22 @@
 <body>
     <!-- Login Page -->
     <div class="login-container" id="loginPage">
+        <div id="intro-text">
+            <h1>AETHER</h1>
+        </div>
         <div class="login-box">
-            <h1>🔐 Aether Admin</h1>
-            <div id="loginError"></div>
+            <div class="text-center mb-8">
+                <h1>Authorize</h1>
+            </div>
+            <div id="loginError" class="error-message" style="display: none;"></div>
             <form onsubmit="login(event)">
                 <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="loginUsername" required autocomplete="username">
+                    <input type="text" id="loginUsername" required placeholder="Username" autocomplete="username">
                 </div>
                 <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="loginPassword" required autocomplete="current-password">
+                    <input type="password" id="loginPassword" required placeholder="Password" autocomplete="current-password">
                 </div>
-                <button type="submit" class="btn-login">Login</button>
+                <button type="submit" class="btn-login">Sign In</button>
             </form>
         </div>
     </div>
@@ -656,7 +718,7 @@
             
             <div class="section">
                 <h2>Create New License</h2>
-                <div class="form-group">
+                <div class="form-group" id="productSelectGroup">
                     <label>Product</label>
                     <select id="product">
                         <option value="fortnite">Fortnite Product</option>
@@ -764,6 +826,19 @@
             };
             document.getElementById('productTitle').textContent = titles[product] || 'All Products';
             
+            // Show/hide product selector in create license form
+            const productSelectGroup = document.getElementById('productSelectGroup');
+            const productSelect = document.getElementById('product');
+            
+            if (product === 'all') {
+                // Show dropdown for all products
+                productSelectGroup.style.display = 'block';
+            } else {
+                // Hide dropdown and auto-select current product
+                productSelectGroup.style.display = 'none';
+                productSelect.value = product;
+            }
+            
             // Show/hide killswitch section based on product
             const killswitchSection = document.getElementById('killswitchSection');
             if (product === 'all') {
@@ -850,8 +925,10 @@
         async function login(event) {
             event.preventDefault();
             
-            const username = document.getElementById('loginUsername').value;
-            const password = document.getElementById('loginPassword').value;
+            const usernameInput = document.getElementById('loginUsername');
+            const passwordInput = document.getElementById('loginPassword');
+            const username = usernameInput.value;
+            const password = passwordInput.value;
             
             try {
                 const response = await fetch(`${API_URL}/admin/login`, {
@@ -864,16 +941,39 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showDashboard(username);
+                    // Remove error styling
+                    usernameInput.classList.remove('error');
+                    passwordInput.classList.remove('error');
+                    document.getElementById('loginError').style.display = 'none';
+                    
+                    // Fade out login
+                    document.getElementById('loginPage').querySelector('.login-box').classList.add('fade-out-slow');
+                    
+                    setTimeout(() => {
+                        showDashboard(username);
+                    }, 1000);
                 } else {
-                    document.getElementById('loginError').innerHTML = 
-                        '<div class="error-message">Invalid username or password</div>';
+                    // Show error
+                    usernameInput.classList.add('error');
+                    passwordInput.classList.add('error');
+                    const errorEl = document.getElementById('loginError');
+                    errorEl.textContent = 'Username or password is incorrect';
+                    errorEl.style.display = 'block';
                 }
             } catch (error) {
-                document.getElementById('loginError').innerHTML = 
-                    '<div class="error-message">Connection error. Please try again.</div>';
+                const errorEl = document.getElementById('loginError');
+                errorEl.textContent = 'Connection error. Please try again.';
+                errorEl.style.display = 'block';
             }
         }
+        
+        // Clear error styling on input
+        document.querySelectorAll('#loginPage input').forEach(input => {
+            input.addEventListener('input', () => {
+                input.classList.remove('error');
+                document.getElementById('loginError').style.display = 'none';
+            });
+        });
         
         async function logout() {
             try {
@@ -971,7 +1071,10 @@
         async function createLicense() {
             const username = document.getElementById('username').value;
             const duration = parseInt(document.getElementById('duration').value);
-            const product = document.getElementById('product').value;
+            const productSelect = document.getElementById('product');
+            
+            // Use selected product from dropdown, or current product if dropdown is hidden
+            const product = currentProduct === 'all' ? productSelect.value : currentProduct;
             
             try {
                 const response = await fetch(`${API_URL}/api/admin/license`, {
